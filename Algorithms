@@ -1,0 +1,86 @@
+import numpy as np
+import pandas as pd
+import warnings
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.svm import SVR
+from sklearn.linear_model import LinearRegression
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.metrics import mean_squared_error, r2_score
+
+# Suppress warnings
+warnings.filterwarnings('ignore')
+
+# Load the dataset
+df = pd.read_csv("/content/Dataset salary 2024.csv")  # replace with your dataset path
+
+# Preprocess the dataset
+# Assuming 'salary' is the target and all other columns are features
+X = df.drop(columns=['salary'])
+y = df['salary']
+
+# Handle categorical features
+categorical_features = X.select_dtypes(include=['object']).columns
+numerical_features = X.select_dtypes(include=[np.number]).columns
+
+# Preprocessing pipelines
+numerical_transformer = StandardScaler()
+categorical_transformer = OneHotEncoder(drop='first', handle_unknown='ignore')
+
+# Combine preprocessing steps
+preprocessor = ColumnTransformer(
+    transformers=[
+        ('num', numerical_transformer, numerical_features),
+        ('cat', categorical_transformer, categorical_features)
+    ])
+
+# Split the dataset into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Create pipelines for each model
+svr_pipeline = Pipeline(steps=[('preprocessor', preprocessor), ('regressor', SVR(kernel='rbf'))])
+linear_pipeline = Pipeline(steps=[('preprocessor', preprocessor), ('regressor', LinearRegression())])
+rf_pipeline = Pipeline(steps=[('preprocessor', preprocessor), ('regressor', RandomForestRegressor(n_estimators=100, random_state=42))])
+
+# Fit the models
+svr_pipeline.fit(X_train, y_train)
+linear_pipeline.fit(X_train, y_train)
+rf_pipeline.fit(X_train, y_train)
+
+# Predict and evaluate the models
+svr_predictions = svr_pipeline.predict(X_test)
+linear_predictions = linear_pipeline.predict(X_test)
+rf_predictions = rf_pipeline.predict(X_test)
+
+# Calculate Mean Squared Errors
+svr_mse = mean_squared_error(y_test, svr_predictions)
+linear_mse = mean_squared_error(y_test, linear_predictions)
+rf_mse = mean_squared_error(y_test, rf_predictions)
+
+# Calculate R^2 values
+svr_r2 = r2_score(y_test, svr_predictions)
+linear_r2 = r2_score(y_test, linear_predictions)
+rf_r2 = r2_score(y_test, rf_predictions)
+
+# Normalize MSE values
+y_max = y.max()
+y_min = y.min()
+
+svr_mse_normalized = svr_mse / (y_max - y_min) ** 2
+linear_mse_normalized = linear_mse / (y_max - y_min) ** 2
+rf_mse_normalized = rf_mse / (y_max - y_min) ** 2
+
+# Print Mean Squared Errors and R^2 values
+print(f"SVR Mean Squared Error: {svr_mse_normalized:.5f}, R^2: {svr_r2:.2f}")
+print(f"Linear Regression Mean Squared Error: {linear_mse_normalized:.5f}, R^2: {linear_r2:.2f}")
+print(f"Random Forest Regression Mean Squared Error: {rf_mse_normalized:.6f}, R^2: {rf_r2:.2f}")
+
+# Visualize the results
+plt.bar(['SVR', 'Linear Regression', 'Random Forest'], [svr_mse_normalized, linear_mse_normalized, rf_mse_normalized])
+plt.xlabel('Model')
+plt.ylabel('Normalized Mean Squared Error')
+plt.title('Model Comparison')
+plt.show()
