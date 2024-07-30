@@ -1,0 +1,199 @@
+import plotly.express as px
+# Groupby exp and job title, and get the mean salary
+df_grouped = df.groupby(["experience_level", "job_title"]).mean("salary_in_usd").reset_index()
+df_grouped["salary_in_usd"] = df_grouped["salary_in_usd"].astype(int)
+
+# For each exp we print the pie plot for the mean salary for each job
+for exp in df_grouped.experience_level.unique().tolist():
+    df_this = df[df["experience_level"] == exp]
+    df_this = df_this.groupby(["job_title"]).mean("salary_in_usd").reset_index()
+    df_this["salary_in_usd"] = df_this["salary_in_usd"].astype(int)
+
+    fig = px.pie(df_this,
+                 values='salary_in_usd',
+                 names='job_title',
+                 title=f'Mean Salary by job title for {exp}')
+    fig.update_traces(textposition='inside', textinfo='label+value')
+    fig.show()
+
+
+# Evolution for each job over the years
+import plotly.graph_objects as go
+def get_visible_list(lista_false, n):
+    return [False if i not in n else True for i in range(len(lista_false))]
+
+def get_all_visible(total_size):
+    return [True for n in range(total_size)]
+
+def get_dict_menu(previous_n, job_title, total_size):
+    indexes = [idx for idx in range(previous_n, previous_n+len(df[df["job_title"] == job_title].experience_level.unique()))]
+    to_add_previous = len(indexes)
+
+    new_dict = get_visible_list(get_all_visible(total_size), indexes)
+
+    return dict(label=job_title, method="update", args=[{"visible": new_dict}]), to_add_previous
+
+fig = go.Figure()
+
+total_size = 0
+df = df.sort_values("job_title")
+
+for t in df['job_title'].unique():
+    df_thisjob = df[df['job_title'] == t]
+    df_this_grouped = df_thisjob.groupby(["work_year", "experience_level"]).mean("salary_in_usd").reset_index()
+
+#     print(t, len(df_this_grouped.experience_level.unique()))
+    total_size += len(df_this_grouped.experience_level.unique())
+
+    for exp in df_this_grouped.experience_level.unique():
+        df_this_exp = df_this_grouped[df_this_grouped["experience_level"] == exp]
+
+        fig.add_trace(go.Scatter(
+            x=df_this_exp.work_year,
+            y=df_this_exp['salary_in_usd'],
+            name=exp,
+            legendgroup=t,
+            legendgrouptitle=dict(text=t),
+            text=f"{t} - {exp}",
+            visible=True,
+        ))
+# print(total_size)
+# print("\n\n***\n\n")
+
+total_dict = []
+previous_n = 0
+
+for i, job_title in enumerate(df['job_title'].unique()):
+#     print(previous_n, job_title)
+    add_dict, to_add_previous = get_dict_menu(previous_n, job_title, total_size)
+    previous_n += to_add_previous
+    total_dict.append(add_dict)
+
+
+fig.update_layout(
+    updatemenus=[
+        dict(
+            active=0,
+            buttons=list([dict(label="All", method="update", args=[{"visible": get_all_visible(total_size)}])] +
+                         total_dict),
+            x=0.3, y=1.2
+        )
+    ])
+
+fig.update_layout(
+    autosize=True,
+    height=400,
+    title="Salary evolution by each job_title/experience_level",
+    xaxis_title="Work years",
+    yaxis_title="Mean salary",
+)
+fig.show()
+
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# Bar plot for a categorical column against salary
+def plot_bar(df, column):
+    plt.figure(figsize=(10, 6))
+    sns.barplot(x=column, y='salary_in_usd', data=df, palette='viridis')
+    plt.title(f'Salary by {column.capitalize()}')
+    plt.xlabel(column.capitalize())
+    plt.ylabel('Average Salary (USD)')
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    plt.show()
+
+plot_bar(df, 'experience_level')
+
+# Box plot to show salary distribution across different categories
+def plot_box(df, column):
+    plt.figure(figsize=(10, 6))
+    sns.boxplot(x=column, y='salary_in_usd', data=df, palette='viridis')
+    plt.title(f'Salary Distribution by {column.capitalize()}')
+    plt.xlabel(column.capitalize())
+    plt.ylabel('Salary (USD)')
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    plt.show()
+
+plot_box(df, 'company_size')
+
+
+# Count plot for categorical column
+def plot_count(df, column):
+    plt.figure(figsize=(10, 6))
+    sns.countplot(x=column, data=df, palette='viridis')
+    plt.title(f'Count of {column.capitalize()}')
+    plt.xlabel(column.capitalize())
+    plt.ylabel('Count')
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    plt.show()
+
+plot_count(df, 'employment_type')
+
+
+# Violin plot to show salary distribution across different categories
+def plot_violin(df, column):
+    plt.figure(figsize=(10, 6))
+    sns.violinplot(x=column, y='salary_in_usd', data=df, palette='viridis')
+    plt.title(f'Salary Distribution by {column.capitalize()}')
+    plt.xlabel(column.capitalize())
+    plt.ylabel('Salary (USD)')
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    plt.show()
+
+plot_violin(df, 'remote_ratio')
+
+
+plt.figure(figsize=(12, 6))
+sns.boxplot(x='experience_level', y='salary_in_usd', data=df)
+plt.title('Salary Distribution by Experience Level')
+plt.xlabel('Experience Level')
+plt.ylabel('Salary in USD')
+plt.show()
+
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# Line plot for trends over time
+def plot_line(df, x_col, y_col):
+    plt.figure(figsize=(10, 6))
+    sns.lineplot(x=x_col, y=y_col, data=df, marker='o', color='b')
+    plt.title(f'{y_col.capitalize()} Over {x_col.capitalize()}')
+    plt.xlabel(x_col.capitalize())
+    plt.ylabel(y_col.capitalize())
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    plt.show()
+
+plot_line(df, 'work_year', 'salary_in_usd')
+
+
+plt.figure(figsize=(12, 6))
+sns.histplot(df['salary_in_usd'].dropna().values, bins=30, kde=True)
+plt.title('Distribution of Salaries (in USD)')
+plt.xlabel('Salary (USD)')
+plt.ylabel('Frequency')
+plt.show()
+
+
+average_salary_by_job_year = df.groupby(['job_title', 'work_year'])['salary_in_usd'].mean().unstack()
+average_salary_by_job_year['growth'] = average_salary_by_job_year.diff(axis=1).sum(axis=1)
+top_10_job_titles = average_salary_by_job_year['growth'].sort_values(ascending=False).head(10).index
+
+plt.figure(figsize=(14, 8))
+plt.figure(figsize=(14, 8))
+for job in top_10_job_titles:
+    job_data = df[df['job_title'] == job]
+    sns.lineplot(x='work_year', y='salary_in_usd', data=job_data, label=job)
+
+plt.title('Salary in USD over Work Years for Top 10 Job Titles')
+plt.xlabel('Work Year')
+plt.ylabel('Salary in USD')
+plt.legend(title='Job Titles')
+plt.grid(True)
+plt.show()
